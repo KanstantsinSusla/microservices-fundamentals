@@ -1,5 +1,6 @@
 package com.epam.resourceservice.controller;
 
+import com.epam.resourceservice.config.MessagingConfig;
 import com.epam.resourceservice.exception.ResourceValidationException;
 import com.epam.resourceservice.service.ResourceService;
 import lombok.extern.log4j.Log4j2;
@@ -9,6 +10,7 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.mp3.Mp3Parser;
 import org.apache.tika.sax.BodyContentHandler;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +29,9 @@ import java.util.Map;
 public class ResourceController {
     @Autowired
     private ResourceService resourceService;
+
+    @Autowired
+    private RabbitTemplate template;
 
     @GetMapping(value = "/{id}")
     public byte[] getResourceById(@PathVariable ("id") Long id) throws IOException {
@@ -52,13 +57,16 @@ public class ResourceController {
         Long resourceId;
 
         if (metadata.get("xmpDM:audioCompressor").equalsIgnoreCase("mp3")) {
-
             resourceId = resourceService.addResource(IOUtils.toByteArray(secondClone), String.valueOf(metadata.hashCode()));
         } else {
             throw new ResourceValidationException("Validation failed or request body is invalid MP3.");
         }
 
-        return Collections.singletonMap("id", resourceId);
+        Map<String, Long> response = Collections.singletonMap("id", resourceId);
+
+        template.convertAndSend(MessagingConfig.RESOURCE_EXCHANGE, MessagingConfig.RESOURCE_ROUTING_KEY, response);
+
+        return response;
     }
 
     @DeleteMapping()
