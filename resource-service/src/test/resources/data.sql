@@ -1,0 +1,1 @@
+INSERT INTO Resource (ID, BUCKET_NAME, RESOURCE_KEY) VALUES (2, 'songs', '1')
