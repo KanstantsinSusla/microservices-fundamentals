@@ -5,6 +5,9 @@ import com.epam.resourceprocessor.model.ResourceLink;
 import com.epam.resourceprocessor.model.SongRequest;
 import lombok.extern.log4j.Log4j2;
 import org.apache.tika.exception.TikaException;
+import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.Queue;
+import org.springframework.amqp.rabbit.annotation.QueueBinding;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,7 +32,11 @@ public class ResourceConsumer {
     @Value("${song.service.url}")
     private String songServiceUrl;
 
-    @RabbitListener(queues = "resource.queue")
+    @RabbitListener(bindings = @QueueBinding(
+            value = @Queue(name = "resource.queue"),
+            key = "resource_routing_key",
+            exchange = @Exchange(value = "resource_exchange")
+    ))
     public void consumeResourceFromQueue(ResourceLink resourceLink) throws TikaException, IOException, SAXException {
         log.info("Invoking Resource consumer.");
 
