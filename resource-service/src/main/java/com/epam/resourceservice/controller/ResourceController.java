@@ -10,6 +10,7 @@ import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.mp3.Mp3Parser;
 import org.apache.tika.sax.BodyContentHandler;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -64,7 +65,7 @@ public class ResourceController {
 
         Map<String, Long> response = Collections.singletonMap("id", resourceId);
 
-        template.convertAndSend(MessagingConfig.RESOURCE_EXCHANGE, MessagingConfig.RESOURCE_ROUTING_KEY, response);
+        sendMessage(response);
 
         return response;
     }
@@ -73,5 +74,9 @@ public class ResourceController {
     public List<Long> deleteResource(@RequestParam (value = "ids") @Size(max = 200) List<Long> ids) {
         log.info("Process delete resource.");
         return resourceService.deleteResourcesByIds(ids);
+    }
+
+    public void sendMessage(Map<String, Long> messageBody) {
+        template.convertAndSend(MessagingConfig.RESOURCE_EXCHANGE, MessagingConfig.RESOURCE_ROUTING_KEY, messageBody, new CorrelationData());
     }
 }
