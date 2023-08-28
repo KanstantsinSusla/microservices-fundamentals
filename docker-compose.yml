@@ -28,6 +28,15 @@ services:
     ports:
       - "8761:8761"
 
+  api-gateway-service-app:
+    build: /api-gateway-service/.
+    ports:
+      - "8111:8111"
+    depends_on:
+      - discovery-service-app
+      - song-service-app
+      - resource-service-app
+
   resource-service-app:
     build: /resource-service/.
     ports:
