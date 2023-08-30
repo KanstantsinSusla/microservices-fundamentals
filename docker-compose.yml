@@ -59,6 +59,11 @@ services:
       - song-db
       - discovery-service-app
 
+  spring-config-server-app:
+    build: /spring-config-server/.
+    ports:
+      - "9999:9999"
+
   resource-processor-app:
     build: /resource-processor/.
     ports:
@@ -66,9 +71,11 @@ services:
     env_file:
       - resource-processor/.env
     depends_on:
+      - song-service-app
       - resource-service-app
       - rabbitmq
       - discovery-service-app
+      - spring-config-server-app
 
   # Rabbit MQ
   rabbitmq:

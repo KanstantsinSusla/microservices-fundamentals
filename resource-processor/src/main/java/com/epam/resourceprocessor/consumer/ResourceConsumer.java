@@ -10,14 +10,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.loadbalancer.LoadBalancerClient;
-import org.springframework.stereotype.Component;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 import org.xml.sax.SAXException;
 
 import java.io.IOException;
 
 @Log4j2
-@Component
+@RestController
+@RefreshScope
 public class ResourceConsumer {
     private static final String RESOURCE_QUEUE = "resource.queue";
 
@@ -46,6 +49,9 @@ public class ResourceConsumer {
 
     @Value("${song.service.endpoint}")
     private String songServiceEndpoint;
+
+    @Value("${test.value:NO TEST VALUE}")
+    private String testValue;
 
     @RabbitListener(bindings = @QueueBinding(
             value = @Queue(name = RESOURCE_QUEUE, arguments = {
@@ -77,5 +83,10 @@ public class ResourceConsumer {
     private void postRequestForSongService(SongRequest songRequest) {
         ServiceInstance songServiceClient = loadBalancerClient.choose("song-service");
         restTemplate.postForObject(songServiceClient.getUri() + songServiceEndpoint, songRequest, Object.class);
+    }
+
+    @GetMapping
+    public String testConfig() {
+        return testValue;
     }
 }
