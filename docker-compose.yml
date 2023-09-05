@@ -22,6 +22,16 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: song-db
 
+  storage-db:
+    image: postgres
+    container_name: "storage-postgre"
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: storage-db
+
   # Services
   discovery-service-app:
     build: /discovery-service/.
@@ -48,6 +58,16 @@ services:
       - localstack
       - rabbitmq
       - discovery-service-app
+
+  storage-service-app:
+    build: /storage-service/.
+    ports:
+      - "8085:8085"
+    env_file:
+      - resource-service/.env
+    depends_on:
+      - storage-db
+      - resource-service-app
 
   song-service-app:
     build: /song-service/.

@@ -2,6 +2,7 @@ package com.epam.resourceservice.unit;
 
 import com.epam.resourceservice.dao.ResourceDao;
 import com.epam.resourceservice.model.Resource;
+import com.epam.resourceservice.model.StorageDetails;
 import com.epam.resourceservice.service.AmazonS3Service;
 import com.epam.resourceservice.service.ResourceService;
 import com.epam.resourceservice.service.impl.ResourceServiceImpl;
@@ -39,11 +40,12 @@ public class ResourceServiceTest {
         String bucketName = "songs";
         byte[] data = new byte[]{};
         String resourceKey = "1";
+        StorageDetails storageDetails = new StorageDetails("bucket_name", "path/");
 
-        when(amazonS3Service.addResource(any(), any())).thenReturn(bucketName);
+        when(amazonS3Service.addResource(any(), any(), any())).thenReturn(bucketName);
         when(resourceDao.save(any())).thenReturn(resource);
 
-        Long resourceId = resourceService.addResource(data, resourceKey);
+        Long resourceId = resourceService.addResource(data, resourceKey, storageDetails);
 
         Assert.assertEquals(Long.valueOf(1), resourceId);
     }
@@ -52,8 +54,9 @@ public class ResourceServiceTest {
     public void addResourceIncorrectArguments() {
         byte[] data = null;
         String resourceKey = "";
+        StorageDetails storageDetails = new StorageDetails("bucket_name", "path/");
 
-        Long resourceId = resourceService.addResource(data, resourceKey);
+        Long resourceId = resourceService.addResource(data, resourceKey, storageDetails);
 
         Assert.assertNull(resourceId);
     }
