@@ -8,14 +8,19 @@ import org.apache.tika.exception.TikaException;
 import org.springframework.amqp.rabbit.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.cloud.client.ServiceInstance;
+import org.springframework.cloud.client.loadbalancer.LoadBalancerClient;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 import org.xml.sax.SAXException;
 
 import java.io.IOException;
 
 @Log4j2
-@Component
+@RestController
+@RefreshScope
 public class ResourceConsumer {
     private static final String RESOURCE_QUEUE = "resource.queue";
 
@@ -31,16 +36,22 @@ public class ResourceConsumer {
     private static final String RESOURCE_ROUTING_KEY_DLQ = "resource_routing_key_dlq";
 
     @Autowired
+    private LoadBalancerClient loadBalancerClient;
+
+    @Autowired
     private RestTemplate restTemplate;
 
     @Autowired
     private SongMetadataConverter songMetadataConverter;
 
-    @Value("${resource.service.url}")
-    private String resourceServiceUrl;
+    @Value("${resource.service.get.endpoint}")
+    private String resourceServiceGetEndpoint;
 
-    @Value("${song.service.url}")
-    private String songServiceUrl;
+    @Value("${song.service.endpoint}")
+    private String songServiceEndpoint;
+
+    @Value("${test.value:NO TEST VALUE}")
+    private String testValue;
 
     @RabbitListener(bindings = @QueueBinding(
             value = @Queue(name = RESOURCE_QUEUE, arguments = {
@@ -55,12 +66,27 @@ public class ResourceConsumer {
         Long resourceId = resourceLink.getId();
 
         log.info("Getting resource from resource service with ID: {}.", resourceId);
-        byte[] resource = restTemplate.getForObject(resourceServiceUrl, byte[].class, resourceId);
-        SongRequest songRequest = songMetadataConverter.convertSongMetadata(resourceId, resource);
+        byte[] resource = getRequestForResourceService(resourceId);
 
+        SongRequest songRequest = songMetadataConverter.convertSongMetadata(resourceId, resource);
         log.info("Sending metadata to song service.");
-        restTemplate.postForObject(songServiceUrl, songRequest, Object.class);
+        postRequestForSongService(songRequest);
 
         log.info(resourceLink.toString());
+    }
+
+    private byte[] getRequestForResourceService(Long resourceId) {
+        ServiceInstance resourceServiceClient = loadBalancerClient.choose("resource-service");
+        return restTemplate.getForObject(resourceServiceClient.getUri() + resourceServiceGetEndpoint, byte[].class, resourceId);
+    }
+
+    private void postRequestForSongService(SongRequest songRequest) {
+        ServiceInstance songServiceClient = loadBalancerClient.choose("song-service");
+        restTemplate.postForObject(songServiceClient.getUri() + songServiceEndpoint, songRequest, Object.class);
+    }
+
+    @GetMapping
+    public String testConfig() {
+        return testValue;
     }
 }

@@ -23,6 +23,20 @@ services:
       POSTGRES_DB: song-db
 
   # Services
+  discovery-service-app:
+    build: /discovery-service/.
+    ports:
+      - "8761:8761"
+
+  api-gateway-service-app:
+    build: /api-gateway-service/.
+    ports:
+      - "8111:8111"
+    depends_on:
+      - discovery-service-app
+      - song-service-app
+      - resource-service-app
+
   resource-service-app:
     build: /resource-service/.
     ports:
@@ -33,6 +47,7 @@ services:
       - resource-db
       - localstack
       - rabbitmq
+      - discovery-service-app
 
   song-service-app:
     build: /song-service/.
@@ -42,6 +57,12 @@ services:
       - song-service/.env
     depends_on:
       - song-db
+      - discovery-service-app
+
+  spring-config-server-app:
+    build: /spring-config-server/.
+    ports:
+      - "9999:9999"
 
   resource-processor-app:
     build: /resource-processor/.
@@ -50,8 +71,11 @@ services:
     env_file:
       - resource-processor/.env
     depends_on:
+      - song-service-app
       - resource-service-app
       - rabbitmq
+      - discovery-service-app
+      - spring-config-server-app
 
   # Rabbit MQ
   rabbitmq:
