@@ -64,7 +64,7 @@ services:
     ports:
       - "8085:8085"
     env_file:
-      - resource-service/.env
+      - storage-service/.env
     depends_on:
       - storage-db
       - resource-service-app
@@ -121,6 +121,41 @@ services:
       - AWS_DEFAULT_REGION=eu-central-1
       - AWS_SECRET_ACCESS_KEY=secret-key
       - AWS_ACCESS_KEY=access-key
+
+  # Logging
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.4.0
+    restart: always
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data/
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.4.0
+    restart: always
+    volumes:
+      - ./logstash-config/:/usr/share/logstash/pipeline/
+    ports:
+      - '9600:9600'
+      - '5000:5000/tcp'
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.4.0
+    restart: always
+    ports:
+      - '5601:5601'
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+
+volumes:
+  elasticsearch-data: {}
 
 networks:
   default:
