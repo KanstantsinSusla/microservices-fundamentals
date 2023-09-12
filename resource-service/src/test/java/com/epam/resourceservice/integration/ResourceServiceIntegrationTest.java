@@ -1,5 +1,6 @@
 package com.epam.resourceservice.integration;
 
+import com.epam.resourceservice.model.StorageDetails;
 import com.epam.resourceservice.service.AmazonS3Service;
 import com.epam.resourceservice.service.ResourceService;
 import org.junit.Test;
@@ -30,10 +31,11 @@ public class ResourceServiceIntegrationTest {
         String bucketName = "songs";
         byte[] data = new byte[]{};
         String resourceKey = "1";
+        StorageDetails storageDetails = new StorageDetails("bucket_name", "path/");
 
-        when(amazonS3Service.addResource(any(), any())).thenReturn(bucketName);
+        when(amazonS3Service.addResource(any(), any(), any())).thenReturn(bucketName);
 
-        Long resourceId = resourceService.addResource(data, resourceKey);
+        Long resourceId = resourceService.addResource(data, resourceKey, storageDetails);
 
         assertNotNull(resourceId);
     }
