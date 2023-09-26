@@ -1,0 +1,186 @@
+version: '3'
+
+services:
+  # Data base
+  resource-db:
+    image: postgres
+    container_name: "resource-postgre"
+    ports:
+      - "5430:5432"
+    environment:
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: resource-db
+
+  song-db:
+    image: postgres
+    container_name: "song-postgre"
+    ports:
+      - "5431:5432"
+    environment:
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: song-db
+
+  storage-db:
+    image: postgres
+    container_name: "storage-postgre"
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: storage-db
+
+  # Services
+  discovery-service-app:
+    build: /discovery-service/.
+    ports:
+      - "8761:8761"
+
+  api-gateway-service-app:
+    build: /api-gateway-service/.
+    ports:
+      - "8111:8111"
+    depends_on:
+      - discovery-service-app
+      - song-service-app
+      - resource-service-app
+
+  resource-service-app:
+    build: /resource-service/.
+    ports:
+      - "8080:8080"
+    env_file:
+      - resource-service/.env
+    depends_on:
+      - resource-db
+      - localstack
+      - rabbitmq
+      - discovery-service-app
+
+  storage-service-app:
+    build: /storage-service/.
+    ports:
+      - "8085:8085"
+    env_file:
+      - storage-service/.env
+    depends_on:
+      - storage-db
+      - resource-service-app
+
+  song-service-app:
+    build: /song-service/.
+    ports:
+      - "8081:8081"
+    env_file:
+      - song-service/.env
+    depends_on:
+      - song-db
+      - discovery-service-app
+
+  spring-config-server-app:
+    build: /spring-config-server/.
+    ports:
+      - "9999:9999"
+
+  resource-processor-app:
+    build: /resource-processor/.
+    ports:
+      - "8083:8083"
+    env_file:
+      - resource-processor/.env
+    depends_on:
+      - song-service-app
+      - resource-service-app
+      - rabbitmq
+      - discovery-service-app
+      - spring-config-server-app
+
+  authorization-server-app:
+    build: /authorization-server/.
+    ports:
+      - "9000:9000"
+    depends_on:
+      - api-gateway-service-app
+
+  # Rabbit MQ
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  # S3 bucket
+  localstack:
+    image: localstack/localstack:0.10.6
+    ports:
+      - "4572:4572"
+      - "8086:8086"
+    environment:
+      - SERVICES=s3:4572
+      - HOSTNAME_EXTERNAL=localhost
+      - DEBUG=1
+      - PORT_WEB_UI=8086
+      - AWS_DEFAULT_REGION=eu-central-1
+      - AWS_SECRET_ACCESS_KEY=secret-key
+      - AWS_ACCESS_KEY=access-key
+
+  # Monitoring
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./api-gateway-service/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000"
+
+  # Logging
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.4.0
+    restart: always
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data/
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.4.0
+    restart: always
+    volumes:
+      - ./logstash-config/:/usr/share/logstash/pipeline/
+    ports:
+      - '9600:9600'
+      - '5000:5000/tcp'
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.4.0
+    restart: always
+    ports:
+      - '5601:5601'
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+
+volumes:
+  elasticsearch-data: {}
+
+networks:
+  default:
+    driver: bridge
+
