@@ -97,6 +97,13 @@ services:
       - discovery-service-app
       - spring-config-server-app
 
+  authorization-server-app:
+    build: /authorization-server/.
+    ports:
+      - "9000:9000"
+    depends_on:
+      - api-gateway-service-app
+
   # Rabbit MQ
   rabbitmq:
     image: rabbitmq:3-management-alpine
